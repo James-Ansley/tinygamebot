@@ -3,6 +3,8 @@ package com.jamesansley.game;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import static com.jamesansley.utils.Collections.*;
 import static com.jamesansley.utils.IO.numberBar;
@@ -22,8 +24,8 @@ public class Join4 {
     public final int currentGameNumber;
     public final int currentMoveNumber;
     public final List<List<Piece>> grid;
+    public final Piece lastMovedPlayer;
     private final List<Integer> heights;
-    private final Piece lastMovedPlayer;
 
     public Join4(int gameNumber) {
         this(gameNumber, 1, nCopies(height, nCopies(width, Piece.EMPTY)), nCopies(width, 0), null);
@@ -62,6 +64,13 @@ public class Join4 {
         );
     }
 
+    public List<Integer> validMoves() {
+        return IntStream.range(1, width + 1)
+                .filter(i -> heights.get(i - 1) < height)
+                .boxed()
+                .toList();
+    }
+
     @Override
     public String toString() {
         String gameInfo = "Join4 - Game %d-%d".formatted(currentGameNumber, currentMoveNumber);
@@ -70,8 +79,24 @@ public class Join4 {
                         .map(String::valueOf)
                         .collect(joining("")))
                 .collect(joining("\n"));
-        String prompt = "Your Move, %s".formatted(Piece.flip(lastMovedPlayer));
+        String prompt;
+        if (isWin()) {
+            prompt = "You Win, %s!".formatted(lastMovedPlayer);
+        } else {
+            prompt = "Your Move, %s".formatted(Piece.flip(lastMovedPlayer));
+        }
         return String.join("\n", gameInfo, gridString, numberBar(1, width + 1), prompt);
+    }
+
+    public List<List<Piece>> contiguousRuns() {
+        List<List<Piece>> rows = grid.stream().flatMap(row -> windowed(row, 4)).toList();
+        List<List<Piece>> cols = transpose(grid).stream().flatMap(row -> windowed(row, 4)).toList();
+        List<List<Piece>> diagonals = diagonals(grid);
+        return Stream.of(rows, cols, diagonals).flatMap(List::stream).toList();
+    }
+
+    public boolean isWin() {
+        return contiguousRuns().stream().anyMatch(row -> count(row, lastMovedPlayer) == 4);
     }
 
     public static Join4 fromString(String data) {

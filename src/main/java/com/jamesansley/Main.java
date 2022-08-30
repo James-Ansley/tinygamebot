@@ -11,13 +11,11 @@ public class Main {
         Scanner s = new Scanner(System.in);
 
         System.out.println(game);
-        System.out.print("> ");
-        int move = s.nextInt();
-        while (0 < move && move <= 7) {
+        while (!game.isWin()) {
+            System.out.print("> ");
+            int move = s.nextInt();
             game = game.move(move);
             System.out.println(game);
-            System.out.print("> ");
-            move = s.nextInt();
         }
     }
 }
