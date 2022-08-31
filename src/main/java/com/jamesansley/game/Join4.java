@@ -1,10 +1,10 @@
 package com.jamesansley.game;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
 import static com.jamesansley.utils.Collections.*;
 import static com.jamesansley.utils.IO.numberBar;
@@ -72,21 +72,6 @@ public class Join4 {
                 .toList();
     }
 
-    @Override
-    public String toString() {
-        String gameInfo = "Join4, Game %d-%d".formatted(currentGameNumber, currentMoveNumber);
-        String gridString = reversed(grid)
-                .map(row -> row.stream().map(String::valueOf).collect(joining("")))
-                .collect(joining("\n"));
-        String prompt;
-        if (isWin()) {
-            prompt = "You Win, %s!".formatted(lastMovedPlayer);
-        } else {
-            prompt = "Your Move, %s".formatted(Piece.flip(lastMovedPlayer));
-        }
-        return String.join("\n", gameInfo, gridString, numberBar(1, width + 1), prompt);
-    }
-
     public boolean isWin() {
         return contiguousRuns().stream().anyMatch(row -> count(row, lastMovedPlayer) == 4);
     }
@@ -109,12 +94,27 @@ public class Join4 {
         return score;
     }
 
+    @Override
+    public String toString() {
+        String gameInfo = "Join4, Game %d-%d".formatted(currentGameNumber, currentMoveNumber);
+        String gridString = reversed(grid)
+                .map(row -> row.stream().map(String::valueOf).collect(joining("")))
+                .collect(joining("\n"));
+        String prompt;
+        if (isWin()) {
+            prompt = "You Win, %s!".formatted(lastMovedPlayer);
+        } else {
+            prompt = "Your Move, %s".formatted(Piece.flip(lastMovedPlayer));
+        }
+        return String.join("\n", gameInfo, gridString, numberBar(1, width + 1), prompt);
+    }
+
     private List<List<Piece>> contiguousRuns() {
         if (contiguousRuns == null) {
-            List<List<Piece>> rows = grid.stream().flatMap(row -> windowed(row, 4)).toList();
-            List<List<Piece>> cols = transpose(grid).stream().flatMap(row -> windowed(row, 4)).toList();
-            List<List<Piece>> diagonals = diagonals(grid);
-            contiguousRuns = Stream.of(rows, cols, diagonals).flatMap(List::stream).toList();
+            contiguousRuns = new ArrayList<>();
+            contiguousRuns.addAll(grid.stream().flatMap(row -> windowed(row, 4)).toList());
+            contiguousRuns.addAll(transpose(grid).stream().flatMap(row -> windowed(row, 4)).toList());
+            contiguousRuns.addAll(diagonals(grid));
         }
         return contiguousRuns;
     }

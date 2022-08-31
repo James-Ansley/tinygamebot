@@ -31,7 +31,6 @@ public class Main {
         Join4 game = Join4.fromString(lastTweet.getText());
 
         List<String> rawReplies = client.getReplies(lastTweet.getId());
-        System.out.println(rawReplies);
         List<Integer> replies = cleanReplies(rawReplies, game.validMoves());
         System.out.println(replies);
 
