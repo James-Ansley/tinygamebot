@@ -26,6 +26,7 @@ public class Join4 {
     public final List<List<Piece>> grid;
     public final Piece lastMovedPlayer;
     private final List<Integer> heights;
+    private List<List<Piece>> contiguousRuns = null;
 
     public Join4(int gameNumber) {
         this(gameNumber, 1, nCopies(height, nCopies(width, Piece.EMPTY)), nCopies(width, 0), null);
@@ -90,11 +91,32 @@ public class Join4 {
         return contiguousRuns().stream().anyMatch(row -> count(row, lastMovedPlayer) == 4);
     }
 
+    public Double heuristic() {
+        if (isWin()) {
+            return 2048.0;  // a big number
+        }
+        double score = 0.0;
+        for (List<Piece> run : contiguousRuns()) {
+            int thisRunOf = count(run, lastMovedPlayer);
+            int theirRunOf = count(run, Piece.flip(lastMovedPlayer));
+            if (theirRunOf == 0) {
+                score += thisRunOf << 1;
+            }
+            if (thisRunOf == 0) {
+                score -= theirRunOf << 1;
+            }
+        }
+        return score;
+    }
+
     private List<List<Piece>> contiguousRuns() {
-        List<List<Piece>> rows = grid.stream().flatMap(row -> windowed(row, 4)).toList();
-        List<List<Piece>> cols = transpose(grid).stream().flatMap(row -> windowed(row, 4)).toList();
-        List<List<Piece>> diagonals = diagonals(grid);
-        return Stream.of(rows, cols, diagonals).flatMap(List::stream).toList();
+        if (contiguousRuns == null) {
+            List<List<Piece>> rows = grid.stream().flatMap(row -> windowed(row, 4)).toList();
+            List<List<Piece>> cols = transpose(grid).stream().flatMap(row -> windowed(row, 4)).toList();
+            List<List<Piece>> diagonals = diagonals(grid);
+            contiguousRuns = Stream.of(rows, cols, diagonals).flatMap(List::stream).toList();
+        }
+        return contiguousRuns;
     }
 
     public static Join4 fromString(String data) {

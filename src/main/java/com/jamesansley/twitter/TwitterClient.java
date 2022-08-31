@@ -2,19 +2,26 @@ package com.jamesansley.twitter;
 
 import com.twitter.clientlib.ApiException;
 import com.twitter.clientlib.api.TwitterApi;
-import com.twitter.clientlib.model.*;
+import com.twitter.clientlib.model.Get2TweetsSearchRecentResponse;
+import com.twitter.clientlib.model.Tweet;
+import com.twitter.clientlib.model.TweetCreateRequest;
+import com.twitter.clientlib.model.TweetCreateResponse;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 import static com.jamesansley.twitter.TwitterAuth.getCredentials;
+import static java.util.Comparator.comparing;
 
 public class TwitterClient {
     private final TwitterApi apiInstance;
-    private final TwitterApi helperApiInstance;
 
     public TwitterClient() throws ApiException {
-        apiInstance = new TwitterApi(getCredentials("ACCESS_TOKEN", "REFRESH_TOKEN"));
-        helperApiInstance = new TwitterApi(getCredentials("HELPER_ACCESS_TOKEN", "HELPER_REFRESH_TOKEN"));
+        apiInstance = new TwitterApi(getCredentials());
+        apiInstance.addCallback(new TwitterAuth.MaintainToken());
+        apiInstance.refreshToken();
     }
 
     public String post(String content) throws ApiException {
@@ -28,51 +35,37 @@ public class TwitterClient {
                 .tweets()
                 .tweetsRecentSearch("from:tinygamebot")
                 .maxResults(10)
-                .tweetFields(Set.of("text"))
+                .tweetFields(Set.of("text", "created_at"))
                 .execute();
-        return result.getData().get(0);
+        return result.getData().stream().max(comparing(Tweet::getCreatedAt)).orElseThrow();
     }
 
-    public List<Tweet> getHelperReplies(String id) throws ApiException {
-        String query = "in_reply_to_tweet_id:%s from:tinygamebothelp".formatted(id);
+    public List<String> getReplies(String id) throws ApiException {
+        String query = "in_reply_to_tweet_id:%s".formatted(id);
         Get2TweetsSearchRecentResponse result = apiInstance
                 .tweets()
                 .tweetsRecentSearch(query)
-                .tweetFields(Set.of("text"))
+                .maxResults(100)
+                .tweetFields(Set.of("text", "author_id"))
                 .execute();
-        return result.getData();
-    }
-
-    public String postReply(String content, String replyingTo) throws ApiException {
-        TweetCreateRequest tweetRequest = new TweetCreateRequest()
-                .text(content)
-                .reply(new TweetCreateRequestReply()
-                        .inReplyToTweetId(replyingTo));
-        TweetCreateResponse result = helperApiInstance.tweets().createTweet(tweetRequest).execute();
-        return result.getData().getId();
-    }
-
-    public void postVoteOptions(Collection<?> options, String replyingTo) throws ApiException {
-        for (Object option : options) {
-            postReply(option.toString(), replyingTo);
+        List<String> uniqueReplies = new ArrayList<>();
+        Set<String> userIDs = new HashSet<>();
+        for (Tweet reply : result.getData()) {
+            String replyID = reply.getAuthorId();
+            if (!userIDs.contains(replyID)) {
+                String text = reply.getText().replaceFirst("^@tinygamebot ", "");
+                uniqueReplies.add(text);
+            }
+            userIDs.add(replyID);
         }
+        return uniqueReplies;
     }
 
-    public Get2TweetsIdResponse getTweet(String id) throws ApiException {
+    public Tweet getTweet(String id) throws ApiException {
         return apiInstance.tweets()
                 .findTweetById(id)
                 .tweetFields(Set.of("public_metrics"))
-                .execute();
-    }
-
-    public Map<String, Integer> aggregateVotes(Collection<String> ids) throws ApiException {
-        Map<String, Integer> optionToWeight = new HashMap<>();
-        for (String id : ids) {
-            Get2TweetsIdResponse response = getTweet(id);
-            Integer likes = response.getData().getPublicMetrics().getLikeCount();
-            String option = response.getData().getText().replaceFirst("^@tinygamebot ", "");
-            optionToWeight.put(option, likes);
-        }
-        return optionToWeight;
+                .execute()
+                .getData();
     }
 }
