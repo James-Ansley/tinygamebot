@@ -2,8 +2,8 @@ package com.jamesansley.utils;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static java.util.stream.IntStream.range;
@@ -60,5 +60,10 @@ public class Collections {
             }
         }
         return diagonals;
+    }
+
+    public static <T> T getRandom(List<T> data) {
+        Random rand = new Random();
+        return data.get(rand.nextInt(data.size()));
     }
 }

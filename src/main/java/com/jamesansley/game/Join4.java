@@ -15,10 +15,10 @@ public class Join4 {
     private static final int width = 7;
     private static final int height = 6;
     private static final Pattern boardPattern = Pattern.compile(
-            "Join4 - Game (?<gameNum>\\d+)-(?<moveNum>\\d+)\\n" +
-            "(?<board>(?:(?:\uD83D\uDFE1|\u26AA|\uD83D\uDD34){7}\\n){6})" +
-            ".*\\n" +
-            "Your Move, (?<nextPlayer>\uD83D\uDFE1|\u26AA|\uD83D\uDD34)"
+            "Join4, Game (?<gameNum>\\d+)-(?<moveNum>\\d+)\\n"
+            + "(?<board>(?:(?:\uD83D\uDFE1|\u26AA|\uD83D\uDD34){7}\\n){6})"
+            + ".*\\n"
+            + "Your Move, (?<nextPlayer>\uD83D\uDFE1|\u26AA|\uD83D\uDD34)"
     );
 
     public final int currentGameNumber;
@@ -73,11 +73,9 @@ public class Join4 {
 
     @Override
     public String toString() {
-        String gameInfo = "Join4 - Game %d-%d".formatted(currentGameNumber, currentMoveNumber);
+        String gameInfo = "Join4, Game %d-%d".formatted(currentGameNumber, currentMoveNumber);
         String gridString = reversed(grid)
-                .map(row -> row.stream()
-                        .map(String::valueOf)
-                        .collect(joining("")))
+                .map(row -> row.stream().map(String::valueOf).collect(joining("")))
                 .collect(joining("\n"));
         String prompt;
         if (isWin()) {
@@ -88,15 +86,15 @@ public class Join4 {
         return String.join("\n", gameInfo, gridString, numberBar(1, width + 1), prompt);
     }
 
-    public List<List<Piece>> contiguousRuns() {
+    public boolean isWin() {
+        return contiguousRuns().stream().anyMatch(row -> count(row, lastMovedPlayer) == 4);
+    }
+
+    private List<List<Piece>> contiguousRuns() {
         List<List<Piece>> rows = grid.stream().flatMap(row -> windowed(row, 4)).toList();
         List<List<Piece>> cols = transpose(grid).stream().flatMap(row -> windowed(row, 4)).toList();
         List<List<Piece>> diagonals = diagonals(grid);
         return Stream.of(rows, cols, diagonals).flatMap(List::stream).toList();
-    }
-
-    public boolean isWin() {
-        return contiguousRuns().stream().anyMatch(row -> count(row, lastMovedPlayer) == 4);
     }
 
     public static Join4 fromString(String data) {

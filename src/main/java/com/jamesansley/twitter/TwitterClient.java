@@ -1,108 +1,78 @@
 package com.jamesansley.twitter;
 
-import com.github.scribejava.core.model.OAuth2AccessToken;
-import com.github.scribejava.core.pkce.PKCE;
-import com.github.scribejava.core.pkce.PKCECodeChallengeMethod;
 import com.twitter.clientlib.ApiException;
-import com.twitter.clientlib.TwitterCredentialsOAuth2;
 import com.twitter.clientlib.api.TwitterApi;
-import com.twitter.clientlib.auth.TwitterOAuth20Service;
-import com.twitter.clientlib.model.Get2TweetsIdResponse;
-import com.twitter.clientlib.model.TweetCreateRequest;
-import com.twitter.clientlib.model.TweetCreateResponse;
-import io.github.cdimascio.dotenv.Dotenv;
+import com.twitter.clientlib.model.*;
 
-import java.nio.charset.StandardCharsets;
-import java.util.Scanner;
+import java.util.*;
+
+import static com.jamesansley.twitter.TwitterAuth.getCredentials;
 
 public class TwitterClient {
     private final TwitterApi apiInstance;
+    private final TwitterApi helperApiInstance;
 
-    public TwitterClient() {
-        TwitterCredentialsOAuth2 credentials = getCredentials();
-        apiInstance = new TwitterApi(credentials);
+    public TwitterClient() throws ApiException {
+        apiInstance = new TwitterApi(getCredentials("ACCESS_TOKEN", "REFRESH_TOKEN"));
+        helperApiInstance = new TwitterApi(getCredentials("HELPER_ACCESS_TOKEN", "HELPER_REFRESH_TOKEN"));
     }
 
-    public void post(String content) {
+    public String post(String content) throws ApiException {
         TweetCreateRequest tweetRequest = new TweetCreateRequest().text(content);
-        try {
-            TweetCreateResponse result = apiInstance.tweets().createTweet(tweetRequest).execute();
-            System.out.println(result);
-        } catch (ApiException e) {
-            printErr(e);
+        TweetCreateResponse result = apiInstance.tweets().createTweet(tweetRequest).execute();
+        return result.getData().getId();
+    }
+
+    public Tweet getLastPost() throws ApiException {
+        Get2TweetsSearchRecentResponse result = apiInstance
+                .tweets()
+                .tweetsRecentSearch("from:tinygamebot")
+                .maxResults(10)
+                .tweetFields(Set.of("text"))
+                .execute();
+        return result.getData().get(0);
+    }
+
+    public List<Tweet> getHelperReplies(String id) throws ApiException {
+        String query = "in_reply_to_tweet_id:%s from:tinygamebothelp".formatted(id);
+        Get2TweetsSearchRecentResponse result = apiInstance
+                .tweets()
+                .tweetsRecentSearch(query)
+                .tweetFields(Set.of("text"))
+                .execute();
+        return result.getData();
+    }
+
+    public String postReply(String content, String replyingTo) throws ApiException {
+        TweetCreateRequest tweetRequest = new TweetCreateRequest()
+                .text(content)
+                .reply(new TweetCreateRequestReply()
+                        .inReplyToTweetId(replyingTo));
+        TweetCreateResponse result = helperApiInstance.tweets().createTweet(tweetRequest).execute();
+        return result.getData().getId();
+    }
+
+    public void postVoteOptions(Collection<?> options, String replyingTo) throws ApiException {
+        for (Object option : options) {
+            postReply(option.toString(), replyingTo);
         }
     }
 
-    public void getTweet(String id) {
-        try {
-            Get2TweetsIdResponse result = apiInstance.tweets().findTweetById(id).execute();
-            System.out.println(result);
-        } catch (ApiException e) {
-            printErr(e);
-        }
+    public Get2TweetsIdResponse getTweet(String id) throws ApiException {
+        return apiInstance.tweets()
+                .findTweetById(id)
+                .tweetFields(Set.of("public_metrics"))
+                .execute();
     }
 
-    private TwitterCredentialsOAuth2 getCredentials() {
-        Dotenv dotenv = Dotenv.load();
-        TwitterCredentialsOAuth2 credentials = new TwitterCredentialsOAuth2(
-                dotenv.get("CLIENT_ID"),
-                dotenv.get("CLIENT_SECRET"),
-                dotenv.get("ACCESS_TOKEN"),
-                dotenv.get("REFRESH_TOKEN")
-        );
-
-        if (credentials.getTwitterOauth2AccessToken() == null) {
-            OAuth2AccessToken accessToken = getAccessToken(credentials);
-            if (accessToken == null) {
-                throw new RuntimeException("Unable to get access token");
-            }
-            credentials.setTwitterOauth2AccessToken(accessToken.getAccessToken());
-            credentials.setTwitterOauth2RefreshToken(accessToken.getRefreshToken());
+    public Map<String, Integer> aggregateVotes(Collection<String> ids) throws ApiException {
+        Map<String, Integer> optionToWeight = new HashMap<>();
+        for (String id : ids) {
+            Get2TweetsIdResponse response = getTweet(id);
+            Integer likes = response.getData().getPublicMetrics().getLikeCount();
+            String option = response.getData().getText().replaceFirst("^@tinygamebot ", "");
+            optionToWeight.put(option, likes);
         }
-        return credentials;
-    }
-
-    public static OAuth2AccessToken getAccessToken(TwitterCredentialsOAuth2 credentials) {
-        OAuth2AccessToken accessToken = null;
-        try (TwitterOAuth20Service service = new TwitterOAuth20Service(
-                credentials.getTwitterOauth2ClientId(),
-                credentials.getTwitterOAuth2ClientSecret(),
-                "https://127.0.0.1",
-                String.join(" ", "tweet.read", "tweet.write", "users.read", "offline.access", "like.read")
-        )) {
-            final Scanner in = new Scanner(System.in, StandardCharsets.UTF_8);
-            System.out.println("Fetching the Authorization URL...");
-
-            final String secretState = "state";
-            PKCE pkce = new PKCE();
-            pkce.setCodeChallenge("challenge");
-            pkce.setCodeChallengeMethod(PKCECodeChallengeMethod.PLAIN);
-            pkce.setCodeVerifier("challenge");
-            String authorizationUrl = service.getAuthorizationUrl(pkce, secretState);
-
-            System.out.print(
-                    "Go to the Authorization URL and authorize your App:\n"
-                    + authorizationUrl
-                    + "\nAfter that paste the authorization code here\n>> "
-            );
-            final String code = in.nextLine();
-            System.out.println("\nTrading the Authorization Code for an Access Token...");
-            accessToken = service.getAccessToken(pkce, code);
-
-            System.out.println("ACCESS_TOKEN=" + accessToken.getAccessToken());
-            System.out.println("REFRESH_TOKEN=" + accessToken.getRefreshToken());
-        } catch (Exception e) {
-            System.err.println("Error while getting the access token:\n " + e);
-            e.printStackTrace();
-        }
-        return accessToken;
-    }
-
-    public static void printErr(ApiException e) {
-        System.err.println("Exception when calling TweetsApi#createTweet");
-        System.err.println("Status code: " + e.getCode());
-        System.err.println("Reason: " + e.getResponseBody());
-        System.err.println("Response headers: " + e.getResponseHeaders());
-        e.printStackTrace();
+        return optionToWeight;
     }
 }

@@ -12,7 +12,7 @@ public class AppTest {
         Join4 game = new Join4(1);
         String gameString = game.toString();
         String expected = """
-                Join4 - Game 1-1
+                Join4, Game 1-1
                 ⚪⚪⚪⚪⚪⚪⚪
                 ⚪⚪⚪⚪⚪⚪⚪
                 ⚪⚪⚪⚪⚪⚪⚪
@@ -39,7 +39,7 @@ public class AppTest {
         Join4 game = new Join4(1).move(3).move(3);
         String gameString = game.toString();
         String expected = """
-                Join4 - Game 1-3
+                Join4, Game 1-3
                 ⚪⚪⚪⚪⚪⚪⚪
                 ⚪⚪⚪⚪⚪⚪⚪
                 ⚪⚪⚪⚪⚪⚪⚪
