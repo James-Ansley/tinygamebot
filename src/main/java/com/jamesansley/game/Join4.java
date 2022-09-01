@@ -73,17 +73,24 @@ public class Join4 {
     }
 
     public boolean isWin() {
-        return contiguousRuns().stream().anyMatch(row -> count(row, lastMovedPlayer) == 4);
+        return isWin(lastMovedPlayer);
     }
 
-    public Double heuristic() {
-        if (isWin()) {
+    public boolean isWin(Piece player) {
+        return contiguousRuns().stream().anyMatch(row -> count(row, player) == 4);
+    }
+
+    public Double heuristic(Piece player) {
+        if (isWin(player)) {
             return 2048.0;  // a big number
+        }
+        if (isWin(Piece.flip(player))) {
+            return -2048.0;  // a big number
         }
         double score = 0.0;
         for (List<Piece> run : contiguousRuns()) {
-            int thisRunOf = count(run, lastMovedPlayer);
-            int theirRunOf = count(run, Piece.flip(lastMovedPlayer));
+            int thisRunOf = count(run, player);
+            int theirRunOf = count(run, Piece.flip(player));
             if (theirRunOf == 0) {
                 score += thisRunOf << 1;
             }
@@ -92,6 +99,10 @@ public class Join4 {
             }
         }
         return score;
+    }
+
+    public Double heuristic() {
+        return heuristic(lastMovedPlayer);
     }
 
     @Override

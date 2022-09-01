@@ -15,7 +15,18 @@ import static com.jamesansley.utils.Collections.getRandom;
 
 public class Main {
     public static void main(String[] args) throws ApiException {
-        continueGame();
+        Join4 game = loadLastGame();
+        if (game.isWin()) {
+            newGame(game.currentGameNumber + 1);
+        } else {
+            continueGame();
+        }
+    }
+    
+    public static Join4 loadLastGame() throws ApiException {
+        TwitterClient client = new TwitterClient();
+        Tweet lastTweet = client.getLastPost();
+        return Join4.fromString(lastTweet.getText());
     }
 
     public static void newGame(int num) throws ApiException {
@@ -37,7 +48,7 @@ public class Main {
         int move = getRandom(replies);
         game = game.move(move);
 
-        Solver solver = new Solver(game);
+        Solver solver = new Solver(game, Join4.Piece.flip(game.lastMovedPlayer));
         int botMove = solver.getBestMove();
         game = game.move(botMove);
 
@@ -57,7 +68,7 @@ public class Main {
             game = game.move(move);
             System.out.println(game);
             System.out.printf("%s score: %f%n", game.lastMovedPlayer, game.heuristic());
-            Solver solver = new Solver(game);
+            Solver solver = new Solver(game, Join4.Piece.flip(game.lastMovedPlayer));
             int botMove = solver.getBestMove();
             System.out.printf("Bot Move > %d%n", botMove);
             game = game.move(botMove);
@@ -71,10 +82,10 @@ public class Main {
 
         System.out.println(game);
         while (!game.isWin()) {
-            Solver solver1 = new Solver(game);
+            Solver solver1 = new Solver(game, Join4.Piece.flip(game.lastMovedPlayer));
             game = game.move(solver1.getBestMove());
             System.out.println(game);
-            Solver solver2 = new Solver(game);
+            Solver solver2 = new Solver(game, Join4.Piece.flip(game.lastMovedPlayer));
             game = game.move(solver2.getBestMove());
             System.out.println(game);
         }
