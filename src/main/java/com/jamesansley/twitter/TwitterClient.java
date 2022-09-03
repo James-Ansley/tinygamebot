@@ -11,6 +11,8 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Predicate;
+import java.util.stream.Stream;
 
 import static com.jamesansley.twitter.TwitterAuth.getCredentials;
 import static java.util.Comparator.comparing;
@@ -40,7 +42,7 @@ public class TwitterClient {
         return result.getData().stream().max(comparing(Tweet::getCreatedAt)).orElseThrow();
     }
 
-    public List<String> getReplies(String id) throws ApiException {
+    public List<Integer> getReplies(String id) throws ApiException {
         String query = "in_reply_to_tweet_id:%s".formatted(id);
         Get2TweetsSearchRecentResponse result = apiInstance
                 .tweets()
@@ -48,13 +50,17 @@ public class TwitterClient {
                 .maxResults(100)
                 .tweetFields(Set.of("text", "author_id"))
                 .execute();
-        List<String> uniqueReplies = new ArrayList<>();
+
+        List<Integer> uniqueReplies = new ArrayList<>();
         Set<String> userIDs = new HashSet<>();
         for (Tweet reply : result.getData()) {
+            String text = reply.getText().replaceFirst("^@tinygamebot ", "").strip();
+            if (!text.matches("\\d")) {
+                continue;
+            }
             String replyID = reply.getAuthorId();
             if (!userIDs.contains(replyID)) {
-                String text = reply.getText().replaceFirst("^@tinygamebot ", "");
-                uniqueReplies.add(text);
+                uniqueReplies.add(Integer.parseInt(text));
             }
             userIDs.add(replyID);
         }

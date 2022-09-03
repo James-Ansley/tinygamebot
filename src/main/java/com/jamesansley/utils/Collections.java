@@ -3,7 +3,6 @@ package com.jamesansley.utils;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static java.util.stream.IntStream.range;
@@ -19,26 +18,15 @@ public class Collections {
         return range(0, size).map(i -> size - i - 1).mapToObj(i -> data[i]);
     }
 
-    public static <T> List<T> setValue(List<T> values, int col, T value) {
-        values = new ArrayList<>(values);
-        values.set(col, value);
-        return values.stream().toList();
-    }
-
     public static <T> List<List<T>> transpose(List<List<T>> data) {
-        return range(0, data.get(0).size())
+        int width = data.get(0).size();
+        return range(0, width)
                 .mapToObj(i -> data.stream().map(l -> l.get(i)).toList())
                 .toList();
     }
 
     public static <T> int count(List<T> data, T target) {
         return Math.toIntExact(data.stream().filter(e -> e.equals(target)).count());
-    }
-
-    public static <T> List<List<T>> setValue(List<List<T>> board, int i, int j, T value) {
-        board = board.stream().map(ArrayList::new).collect(Collectors.toList());
-        board.get(i).set(j, value);
-        return board.stream().map(row -> row.stream().toList()).toList();
     }
 
     public static <T> Stream<List<T>> windowed(List<T> list, int size) {
