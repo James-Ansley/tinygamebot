@@ -11,6 +11,7 @@ import com.twitter.clientlib.model.Tweet;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Scanner;
 import java.util.Set;
 
 import static com.jamesansley.utils.Collections.getRandom;
@@ -30,6 +31,7 @@ public class TinyGameBot {
 
         int move = getRandom(replies);
         game = game.move(move);
+        System.out.println(game.validMoves());
 
         if (!game.isFinished()) {
             Solver solver = new Solver(game, 4);
@@ -43,6 +45,23 @@ public class TinyGameBot {
         if (game.isFinished()) {
             Game newGame = new Join4(game.getGameNum() + 1);
             client.post(newGame.toString());
+        }
+    }
+
+    public static void playerVsBot() {
+        Game game = new Join4(1);
+        Scanner s = new Scanner(System.in);
+
+        System.out.println(game);
+        while (!game.isFinished()) {
+            System.out.print("> ");
+            int move = s.nextInt();
+            game = game.move(move);
+            System.out.println(game);
+            Solver solver = new Solver(game, 4);
+            move = solver.getBestMove();
+            game = game.move(move);
+            System.out.println(game);
         }
     }
 }
